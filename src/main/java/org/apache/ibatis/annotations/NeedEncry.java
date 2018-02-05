@@ -6,7 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * @author
+ * need encry field
+ *
+ * @author zhanghj
  * @create 2018-01-22 15:07
  **/
 

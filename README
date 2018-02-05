@@ -4,3 +4,10 @@ Simplicity is the biggest advantage of the MyBatis data mapper over object relat
 
 See the docs in: http://mybatis.github.io/mybatis-3
 Download it from: https://github.com/mybatis/mybatis-3/releases
+
+
+
+----------------------------------------------------------------------------------------------------------------
+
+2018年2月2日 
+	增加mybatis 拦截功能特定注解， 并对特定字段做加密或者解密

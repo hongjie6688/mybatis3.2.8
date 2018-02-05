@@ -6,9 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 不需要加密的方法或者类
+ * not neel ecnry method or class
  *
- * @author hongjie
+ * @author zhanghongjie
  * @date 2018/1/26.17:03
  */
 @Target({ElementType.METHOD, ElementType.TYPE})

@@ -17,6 +17,7 @@ package org.apache.ibatis.executor.resultset;
 
 import org.apache.ibatis.annotations.NeedEncry;
 import org.apache.ibatis.cache.CacheKey;
+import org.apache.ibatis.encry.AESEncryUtil;
 import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.executor.ExecutorException;
@@ -30,6 +31,7 @@ import org.apache.ibatis.reflection.MetaClass;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.factory.ObjectFactory;
 import org.apache.ibatis.session.*;
+import org.apache.ibatis.session.threadinfo.InvocationInfoProxy;
 import org.apache.ibatis.type.StringTypeHandler;
 import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
@@ -356,39 +358,43 @@ public class DefaultResultSetHandler implements ResultSetHandler {
             if (propertyMapping.isCompositeResult()
                     || (column != null && mappedColumnNames.contains(column.toUpperCase(Locale.ENGLISH))) || propertyMapping.getResultSet() != null) {
                 Object value = null;
+                boolean needDecry = mappedStatement.isEncryType();
                 // issue #541 make property optional
                 final String property = propertyMapping.getProperty();
                 Class clazz = resultMap.getType();
                 try {
-                    Field field = clazz.getDeclaredField(property);
-                    NeedEncry needEncry = field.getAnnotation(NeedEncry.class);
-                    if (needEncry != null) {
-                        TypeHandler oldTypeHandler = propertyMapping.getTypeHandler();
-                        TypeHandler typeHandler = propertyMapping.getTypeHandler();
-                        if (propertyMapping.getJdbcType() != null) {
-                            typeHandler = new StringTypeHandler();
-                            propertyMapping.setTypeHandler(typeHandler);
+                    if (needDecry) {
+                        Field field = clazz.getDeclaredField(property);
+                        NeedEncry needEncry = field.getAnnotation(NeedEncry.class);
+                        if (needEncry != null) {
+                            TypeHandler oldTypeHandler = propertyMapping.getTypeHandler();
+                            TypeHandler typeHandler = propertyMapping.getTypeHandler();
+                            if (propertyMapping.getJdbcType() != null) {
+                                typeHandler = new StringTypeHandler();
+                                propertyMapping.setTypeHandler(typeHandler);
+                            }
+                            value = getPropertyMappingValue(rsw.getResultSet(), metaObject, propertyMapping, lazyLoader, columnPrefix);
+                            propertyMapping.setTypeHandler(oldTypeHandler);
+                            String oldValue = "";
+                            if (value != null) {
+                                oldValue = value.toString();
+                            }
+                            Class fieldClazz = metaObject.getGetterType(field.getName());
+                            // TODO 做解密
+                            String decryObject = AESEncryUtil.decrypt(oldValue, InvocationInfoProxy.getEncryToken());
+                            Object newValue = parseObject(fieldClazz, decryObject);
+                            value = newValue;
+                        } else {
+                            value = getPropertyMappingValue(rsw.getResultSet(), metaObject, propertyMapping, lazyLoader, columnPrefix);
                         }
-                        value = getPropertyMappingValue(rsw.getResultSet(), metaObject, propertyMapping, lazyLoader, columnPrefix);
-                        propertyMapping.setTypeHandler(oldTypeHandler);
-                        String oldValue = "";
-                        if (value != null) {
-                            oldValue = value.toString();
-                        }
-                        Class fieldClazz = metaObject.getGetterType(field.getName());
-                        // TODO 做解密
-                        //  AESEncryUtil.decrypt(oldValue, "1");
-                        Object newValue = parseObject(fieldClazz, "1111");
-                        value = newValue;
                     } else {
                         value = getPropertyMappingValue(rsw.getResultSet(), metaObject, propertyMapping, lazyLoader, columnPrefix);
                     }
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
-                if (value != NO_VALUE && property != null && (value != null || configuration.isCallSettersOnNulls())) { // issue #377, call setter on nulls
+                // issue #377, call setter on nulls
+                if (value != NO_VALUE && property != null && (value != null || configuration.isCallSettersOnNulls())) {
                     if (value != null || !metaObject.getSetterType(property).isPrimitive()) {
                         metaObject.setValue(property, value);
                     }

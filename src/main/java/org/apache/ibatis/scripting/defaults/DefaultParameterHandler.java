@@ -16,19 +16,23 @@
 package org.apache.ibatis.scripting.defaults;
 
 import org.apache.ibatis.annotations.NeedEncry;
+import org.apache.ibatis.encry.AESEncryUtil;
 import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.executor.parameter.ParameterHandler;
 import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.session.threadinfo.InvocationInfoProxy;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.StringTypeHandler;
 import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -80,25 +84,62 @@ public class DefaultParameterHandler implements ParameterHandler {
                     JdbcType jdbcType = parameterMapping.getJdbcType();
                     if (value == null && jdbcType == null) jdbcType = configuration.getJdbcTypeForNull();
                     TypeHandler typeHandler = parameterMapping.getTypeHandler();
-                    Class clazz = parameterObject.getClass();
-                    try {
-                        Field field = clazz.getDeclaredField(propertyName);
-                        NeedEncry needEncry = field.getAnnotation(NeedEncry.class);
-                        if (needEncry != null) {
-                            // TODO 做解密
-                            //  AESEncryUtil.decrypt(oldValue, "1");
-                            value = "qweqwe";
-                            typeHandler = new StringTypeHandler();
-                            typeHandler.setParameter(ps, i + 1, value, jdbcType);
-                        } else {
-                            typeHandler.setParameter(ps, i + 1, value, jdbcType);
+                    boolean needEncry = mappedStatement.isEncryType();
+                    if (needEncry) {
+                        Class clazz = parameterObject.getClass();
+                        try {
+                            String needEncryValue = objectToString(value, needEncry);
+                            if (needEncry) {
+                                Field field = clazz.getDeclaredField(propertyName);
+                                NeedEncry needEncryClass = field.getAnnotation(NeedEncry.class);
+                                if (needEncryClass != null && value != null) {
+                                    // TODO 做解密
+                                    // 获取秘钥
+                                    value = AESEncryUtil.encrypt(needEncryValue, InvocationInfoProxy.getEncryToken());
+                                    typeHandler = new StringTypeHandler();
+                                    typeHandler.setParameter(ps, i + 1, value, jdbcType);
+                                } else {
+                                    typeHandler.setParameter(ps, i + 1, value, jdbcType);
+                                }
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    } else {
+                        typeHandler.setParameter(ps, i + 1, value, jdbcType);
                     }
                 }
             }
         }
+    }
+
+
+    /**
+     * object to string
+     *
+     * @param object
+     * @return
+     */
+
+    private String objectToString(Object object, boolean flag) {
+        if (object instanceof String) {
+            return object.toString();
+        } else if (object instanceof BigDecimal) {
+            BigDecimal bigDecimal = (BigDecimal) object;
+            bigDecimal = bigDecimal.setScale(8, BigDecimal.ROUND_HALF_UP);
+            return bigDecimal.toString();
+        } else if (object instanceof Long || object instanceof Integer || object instanceof Double
+                || object instanceof Byte || object instanceof Float || object instanceof Short
+                || object instanceof Boolean) {
+            return object.toString();
+        } else if (object.getClass().isPrimitive()) {
+            System.out.println(object.getClass());
+            return (String) object;
+        } else if (object instanceof Date) {
+            flag = false;
+            return "";
+        }
+        return "";
     }
 
 }

@@ -23,8 +23,8 @@
     <version>21</version>
   </parent>
 
-  <artifactId>mybatis</artifactId>
-  <version>3.2.8-zhj</version>
+  <artifactId>mybatis-xfs</artifactId>
+  <version>3.2.8-RELEASE</version>
   <packaging>jar</packaging>
 
   <name>MyBatis</name>
@@ -142,6 +142,12 @@
       <optional>true</optional>
     </dependency>
     <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>1.9</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <version>1.7.5</version>
@@ -234,13 +240,7 @@
       <version>9.1-901.jdbc3</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>commons-codec</groupId>
-      <artifactId>commons-codec</artifactId>
-      <version>1.9</version>
-      <scope>private</scope>
-      <optional>true</optional>
-    </dependency>
+
   </dependencies>
 
   <build>
